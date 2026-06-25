@@ -14,10 +14,97 @@ st.set_page_config(
 # ========== 自定义样式 ==========
 st.markdown("""
 <style>
+    /* 浅蓝紫背景主题 */
+    .main .block-container { background: linear-gradient(135deg, #f0f7ff 0%, #f5f0ff 100%); }
+
+    /* 欢迎页环形头像墙 */
+    .avatar-ring-container {
+        position: relative;
+        width: 380px;
+        height: 380px;
+        margin: 30px auto;
+    }
+    .avatar-orbit {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px dashed rgba(102,126,234,0.25);
+    }
+    .avatar-orbit-outer {
+        width: 380px; height: 380px;
+        top: 0; left: 0;
+        animation: rotate 60s linear infinite;
+    }
+    .avatar-orbit-inner {
+        width: 240px; height: 240px;
+        top: 70px; left: 70px;
+        animation: rotate 45s linear infinite reverse;
+    }
+    .avatar-item {
+        position: absolute;
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 2px solid rgba(255,255,255,0.8);
+    }
+    .avatar-item:hover {
+        transform: scale(1.3) !important;
+        filter: brightness(1.2) !important;
+        z-index: 100 !important;
+        box-shadow: 0 4px 20px rgba(102,126,234,0.3) !important;
+        border-color: #667eea !important;
+    }
+    .avatar-tooltip {
+        position: absolute;
+        background: rgba(255,255,255,0.95);
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        color: #444;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 200;
+    }
+    .avatar-item:hover .avatar-tooltip {
+        opacity: 1;
+    }
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .center-btn {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 4px 20px rgba(102,126,234,0.4);
+        animation: pulse-center 2s ease-in-out infinite;
+        z-index: 50;
+    }
+    @keyframes pulse-center {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(102,126,234,0.4); }
+        50% { box-shadow: 0 0 0 15px rgba(102,126,234,0); }
+    }
+
     /* 聊天消息间距 */
     .stChatMessage { padding: 8px 0; }
 
-    /* 结果大卡片 */
+    /* 结果大卡片 - 浅色主题 */
     .result-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -37,11 +124,26 @@ st.markdown("""
         margin-top: 8px;
         opacity: 0.92;
     }
-    .result-motto {
+
+    /* 核心性格卡片 - 浅色 */
+    .core-personality-card {
+        background: white;
+        padding: 20px 24px;
+        border-radius: 14px;
+        margin: 16px 0;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 2px 12px rgba(102,126,234,0.08);
+    }
+    .core-personality-card .title {
+        font-size: 15px;
+        color: #667eea;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .core-personality-card .content {
         font-size: 14px;
-        margin-top: 10px;
-        opacity: 0.75;
-        font-style: italic;
+        color: #444;
+        line-height: 1.8;
     }
 
     /* 双色进度条容器 */
@@ -315,23 +417,93 @@ def render_dual_bar(left_letter, right_letter, left_score, right_score, dim_name
 # ==================== 页面：信息收集 =======================
 # ============================================================
 if st.session_state.phase == "onboarding":
+    # 16 种 MBTI 类型的数据（用于头像展示）
+    MBTI_AVATARS = [
+        ("ISTJ", "🐢", "#e8d5e0"), ("ISFJ", "🦌", "#d5e8e0"),
+        ("INFJ", "🦉", "#d5d8e8"), ("INTJ", "🦅", "#e0d5e8"),
+        ("ISTP", "🐺", "#e8e0d5"), ("ISFP", "🦋", "#e8d5d8"),
+        ("INFP", "🦄", "#d8e0e8"), ("INTP", "🦊", "#e8e8d5"),
+        ("ESTP", "🐆", "#f0e0d0"), ("ESFP", "🐬", "#d0f0e0"),
+        ("ENFP", "🦜", "#d0e0f0"), ("ENTP", "🐉", "#f0d0e0"),
+        ("ESTJ", "🦁", "#f0e8d0"), ("ESFJ", "🐘", "#d0e8f0"),
+        ("ENFJ", "🦚", "#e8d0f0"), ("ENTJ", "🦈", "#f0d0d0"),
+    ]
+    
+    # 生成头像墙 HTML
+    avatar_html = '<div class="avatar-ring-container">'
+    
+    # 外圈 8 个
+    outer_types = MBTI_AVATARS[8:]
+    for i, (type_code, emoji, color) in enumerate(outer_types):
+        angle = (i / 8) * 360 - 90
+        rad = math.radians(angle)
+        x = 190 + 170 * math.cos(rad) - 24
+        y = 190 + 170 * math.sin(rad) - 24
+        avatar_html += f'<div class="avatar-item" style="left:{x}px;top:{y}px;background:{color};">{emoji}<div class="avatar-tooltip">{type_code}: 我是{type_code}，{["严谨可靠","温暖体贴","洞察深邃","谋略深远","冷静务实","艺术感知","理想浪漫","逻辑探索","活力冒险","热情乐天","灵感创造","机智挑战","果断领导","关怀责任","鼓舞他人","战略统帅"][i+8]}</div></div>'
+    
+    # 内圈 8 个
+    inner_types = MBTI_AVATARS[:8]
+    for i, (type_code, emoji, color) in enumerate(inner_types):
+        angle = (i / 8) * 360 - 90 + 22.5
+        rad = math.radians(angle)
+        x = 190 + 105 * math.cos(rad) - 24
+        y = 190 + 105 * math.sin(rad) - 24
+        avatar_html += f'<div class="avatar-item" style="left:{x}px;top:{y}px;background:{color};">{emoji}<div class="avatar-tooltip">{type_code}: 我是{type_code}，{["严谨可靠","温暖体贴","洞察深邃","谋略深远","冷静务实","艺术感知","理想浪漫","逻辑探索"][i]}</div></div>'
+    
+    avatar_html += '<div class="center-btn">🧠</div>'
+    avatar_html += '</div>'
+
     st.markdown("""
-    <div style="text-align: center; padding: 50px 20px 20px;">
-        <div style="font-size: 56px; margin-bottom: 12px;">🧠</div>
-        <h1 style="font-size: 34px; margin-bottom: 10px;">MBTI 性格探索之旅</h1>
-        <p style="font-size: 16px; color: #666; max-width: 480px; margin: 0 auto 8px;">
-            由 AI 智能体引导你完成 28 道情景对话题，发现你真实的性格类型
-        </p>
-        <p style="font-size: 13px; color: #999; max-width: 460px; margin: 0 auto;">
-            测试约 8-12 分钟 · 请凭第一直觉作答 · 没有对错之分 ✨
-        </p>
-    </div>
+    <style>
+    .onboarding-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 6px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .onboarding-subtitle {
+        text-align: center;
+        font-size: 15px;
+        color: #888;
+        margin-bottom: 20px;
+    }
+    .onboarding-hint {
+        text-align: center;
+        font-size: 13px;
+        color: #aaa;
+        margin-top: 10px;
+    }
+    .input-card {
+        background: white;
+        padding: 28px 32px;
+        border-radius: 18px;
+        box-shadow: 0 4px 20px rgba(102,126,234,0.1);
+        max-width: 420px;
+        margin: 0 auto;
+    }
+    </style>
     """, unsafe_allow_html=True)
-
-    st.divider()
-
-    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    st.markdown('<div class="onboarding-title">MBTI 性格探索之旅</div>', unsafe_allow_html=True)
+    st.markdown('<div class="onboarding-subtitle">把鼠标移到头像上，听听它们说什么 👆</div>', unsafe_allow_html=True)
+    
+    # 显示环形头像墙
+    import math
+    st.markdown(avatar_html, unsafe_allow_html=True)
+    
+    st.markdown('<div class="onboarding-hint">28 道情景题 · 约 8-12 分钟 · 凭第一直觉作答 ✨</div>', unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 输入卡片
+    col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
+        st.markdown('<div class="input-card">', unsafe_allow_html=True)
         st.markdown("#### 👤 先告诉我一点关于你的信息")
         user_name_input = st.text_input(
             "你的名字或昵称",
@@ -343,9 +515,9 @@ if st.session_state.phase == "onboarding":
             placeholder="例如：人力资源管理、产品经理、学生...",
             max_chars=30,
         )
-
+        
         st.markdown("")
-
+        
         if st.button("🚀 开始探索", use_container_width=True, type="primary"):
             if not api_key:
                 st.error("请先在侧边栏输入 DeepSeek API Key！")
@@ -385,12 +557,13 @@ if st.session_state.phase == "onboarding":
                 )
                 st.session_state.messages.append({"role": "assistant", "content": first_msg})
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================
 # ==================== 页面：测评对话 =======================
 # ============================================================
 elif st.session_state.phase == "testing":
-    # 进度条
+    # 进度条 - 只显示进度，不显示维度
     progress = st.session_state.current_q / 28
     st.progress(progress, text=f"📍 测评进度：{st.session_state.current_q}/28　　👤 {st.session_state.user_name}")
 
@@ -528,9 +701,9 @@ elif st.session_state.phase == "result":
     if core:
         core_html = core.replace('\n', '<br>')
         st.markdown(f"""
-        <div style="background: #f8f7ff; padding: 20px 24px; border-radius: 14px; margin: 16px 0; border-left: 4px solid #667eea;">
-            <div style="font-size: 15px; color: #667eea; font-weight: 700; margin-bottom: 10px;">🪞 {name}，这是你的核心性格画像</div>
-            <div style="font-size: 14px; color: #444; line-height: 1.8;">{core_html}</div>
+        <div class="core-personality-card">
+            <div class="title">🪞 {name}，这是你的核心性格画像</div>
+            <div class="content">{core_html}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -704,3 +877,5 @@ J {st.session_state.scores['J']*100//7}% vs P {st.session_state.scores['P']*100/
             for k in list(defaults.keys()):
                 st.session_state[k] = defaults[k]
             st.rerun()
+
+
