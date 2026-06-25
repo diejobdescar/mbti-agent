@@ -15,8 +15,22 @@ st.set_page_config(
 # ========== 自定义样式 ==========
 st.markdown("""
 <style>
-    /* 浅蓝紫背景主题 */
-    .main .block-container { background: linear-gradient(135deg, #f0f7ff 0%, #f5f0ff 100%); }
+    /* 浅蓝紫背景主题 - 多选择器确保生效 */
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    .appview-container {
+        background: linear-gradient(135deg, #f0f7ff 0%, #f5f0ff 100%) !important;
+    }
+    .main .block-container,
+    [data-testid="stVerticalBlock"] {
+        background: transparent !important;
+    }
+
+    /* 侧边栏同步浅主题 */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff 0%, #f5f0ff 100%) !important;
+        border-right: 1px solid rgba(102,126,234,0.1);
+    }
 
     /* 欢迎页环形头像墙 */
     .avatar-ring-container {
@@ -102,8 +116,31 @@ st.markdown("""
         50% { box-shadow: 0 0 0 15px rgba(102,126,234,0); }
     }
 
-    /* 聊天消息间距 */
-    .stChatMessage { padding: 8px 0; }
+    /* 聊天消息 - 浅色主题美化 */
+    .stChatMessage {
+        padding: 8px 0;
+    }
+    .stChatMessage [data-testid="stChatMessageContent"] {
+        background: white;
+        border-radius: 14px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 12px rgba(102,126,234,0.08);
+        border: 1px solid rgba(102,126,234,0.1);
+    }
+    .stChatMessage [data-testid="stChatMessageContent"] p {
+        color: #444;
+        line-height: 1.6;
+    }
+    .stChatMessage [data-testid="stChatMessageAvatarAssistant"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    /* 输入框样式 */
+    .stChatInput {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(102,126,234,0.1);
+    }
 
     /* 结果大卡片 - 浅色主题 */
     .result-card {
@@ -878,5 +915,4 @@ J {st.session_state.scores['J']*100//7}% vs P {st.session_state.scores['P']*100/
             for k in list(defaults.keys()):
                 st.session_state[k] = defaults[k]
             st.rerun()
-
 
