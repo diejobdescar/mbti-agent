@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import math
 from openai import OpenAI
 from questions import QUESTIONS
 from mbti_data import MBTI_TYPES, DIMENSION_INFO
